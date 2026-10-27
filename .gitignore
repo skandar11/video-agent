@@ -1,0 +1,37 @@
+# --- секреты: никогда не коммитить ---
+secrets/
+.env
+*.env
+!.env.example
+*.key
+*.pem
+id_*
+
+# --- файлы доменов: только локально ---
+*/docs/
+*/inbox/
+
+# --- ОС / редакторы ---
+.DS_Store
+.obsidian/
+
+# --- python (когда появятся код-проекты) ---
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# --- монтаж: видео тяжёлое, в git только монтажный лист ---
+video/projects/*/work/
+video/projects/*/out/
+video/assets/*
+!video/assets/licenses.md
+engine/models/*
+!engine/models/README.md
+*.egg-info/
+.pytest_cache/
+*.mp4
+*.mov
+*.MOV
+*.m4a
+*.wav

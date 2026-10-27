@@ -1,0 +1,46 @@
+#!/bin/zsh
+# Установка движка монтажа на Mac (Apple Silicon). Повторный запуск безопасен.
+#   ffmpeg-full (brew)  — zscale (HDR), libass (сабы), arnndn, loudnorm
+#   python@3.12 (brew)  — окружение engine/.venv с пакетом montage
+#   Inter (OFL)         — шрифт сабов и карточек в ~/Library/Fonts
+# Модель расшифровки (mlx-whisper large-v3-turbo, ~1,6 ГБ) скачивается сама при первом `montage transcribe`.
+set -euo pipefail
+ROOT="${0:A:h:h}"
+ENGINE="$ROOT/engine"
+
+[[ "$(uname -s)" == Darwin && "$(uname -m)" == arm64 ]] || { echo "нужен Mac на Apple Silicon (M1 и новее)"; exit 1; }
+command -v brew >/dev/null || { echo "нет Homebrew: поставь с https://brew.sh и запусти снова"; exit 1; }
+
+echo "1/4 ffmpeg-full"
+brew list ffmpeg-full >/dev/null 2>&1 || brew install ffmpeg-full
+FF="$(brew --prefix ffmpeg-full)/bin/ffmpeg"
+FILTERS="$("$FF" -hide_banner -filters 2>/dev/null)"
+for f in zscale ass loudnorm; do
+  grep -q " $f " <<< "$FILTERS" || { echo "в $FF нет фильтра $f"; exit 1; }
+done
+
+echo "2/4 python 3.12"
+brew list python@3.12 >/dev/null 2>&1 || brew install python@3.12
+PY="$(brew --prefix python@3.12)/bin/python3.12"
+
+echo "3/4 engine/.venv + montage"
+[[ -d "$ENGINE/.venv" ]] || "$PY" -m venv "$ENGINE/.venv"
+"$ENGINE/.venv/bin/pip" install -q --upgrade pip
+"$ENGINE/.venv/bin/pip" install -q -e "$ENGINE"
+
+echo "4/4 шрифт Inter"
+FONTS="$HOME/Library/Fonts"
+if [[ ! -f "$FONTS/Inter-ExtraBold.ttf" ]]; then
+  TMP="$(mktemp -d)"
+  curl -sSL -o "$TMP/inter.zip" https://github.com/rsms/inter/releases/download/v4.1/Inter-4.1.zip
+  for w in Regular SemiBold Bold ExtraBold; do
+    unzip -q -j -o "$TMP/inter.zip" "extras/ttf/Inter-$w.ttf" -d "$FONTS"
+  done
+  rm -rf "$TMP"
+fi
+
+mkdir -p "$ROOT/video/inbox" "$ROOT/video/projects"
+
+echo
+echo "готово: $ENGINE/.venv/bin/montage --help"
+echo "проверка: cd $ENGINE && .venv/bin/python -m pytest -q"

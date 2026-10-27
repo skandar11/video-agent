@@ -1,0 +1,19 @@
+{
+  "_": "Стиль по умолчанию: карточки 2–4 слова на тёмной полупрозрачной подложке (BorderStyle 3), Inter Bold, мягкий вход. margin_v 320: ниже карточка садится в нижние 250 px, которые закрывает подпись Reels.",
+  "mode": "cards",
+  "font": "Inter",
+  "bold": true,
+  "size": 60,
+  "text": "#ffffff",
+  "accent": "#ffd36e",
+  "border_style": 3,
+  "box": "#000000",
+  "box_alpha": 64,
+  "outline": 18,
+  "shadow": 0,
+  "margin_v": 320,
+  "margin_h": 60,
+  "max_words": 4,
+  "two_lines_from": 3,
+  "pop": "{\\fad(100,80)\\fscx96\\fscy96\\t(0,90,\\fscx100\\fscy100)}"
+}

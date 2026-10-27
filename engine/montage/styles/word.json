@@ -1,0 +1,11 @@
+{
+  "_": "Пословная подсветка: карточка фразы, произносимое слово — акцентом с поп-увеличением 114→100 %. Inter ExtraBold 82, обводка 6, тень 2.",
+  "mode": "word",
+  "font": "Inter ExtraBold", "bold": false, "size": 82,
+  "text": "#ffffff", "accent": "#ffd36e",
+  "border_style": 1, "outline_color": "#2b1d24", "shadow_color": "#000000", "shadow_alpha": 100,
+  "outline": 6, "shadow": 2, "margin_v": 470, "margin_h": 80,
+  "max_words": 4, "two_lines_from": 99,
+  "word_pop": "\\fscx114\\fscy114\\t(0,140,\\fscx100\\fscy100)",
+  "card_fade": "{\\fad(60,0)}"
+}

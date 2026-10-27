@@ -1,0 +1,108 @@
+#!/usr/bin/env python3
+"""check — прогон проверки неймспейса: связи, имена, таблицы, секреты.
+
+Executor of meta-vault/operations/check-links-and-names.md. Run from anywhere:
+    python3 bin/check            # report
+    python3 bin/check --quiet    # numbers only
+Exit code 1 if anything is broken. Reads only; never edits files.
+"""
+import os, re, subprocess, sys, datetime
+from collections import defaultdict
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SKIP_DIRS = {'.git', 'secrets', 'archive', '.obsidian', 'node_modules', '.venv', 'venv'}
+SKIP_PATH_PARTS = ('/docs/', '/inbox/')
+LINK = re.compile(r'\[\[([^\]]+)\]\]')
+CODE_SPAN = re.compile(r'`[^`]*`')
+TABLE_UNESCAPED = re.compile(r'\[\[[^\]]*?[^\\]\|[^\]]*\]\]')
+SECRET = r'(api[_-]?key|token|password|passwd|secret)[[:space:]]*[:=][[:space:]]*[A-Za-z0-9_/+.-]{16,}'
+
+
+def md_files():
+    for d, dirs, files in os.walk(ROOT):
+        dirs[:] = [x for x in dirs if x not in SKIP_DIRS]
+        rel = os.path.relpath(d, ROOT) + '/'
+        if any(p in '/' + rel for p in SKIP_PATH_PARTS):
+            continue
+        for f in files:
+            if f.endswith('.md'):
+                yield os.path.join(d, f)
+
+
+def prose_lines(path):
+    """Lines outside fenced code blocks, with inline code spans removed."""
+    fence = None
+    for n, line in enumerate(open(path, encoding='utf-8'), 1):
+        s = line.lstrip()
+        if s.startswith('```') or s.startswith('~~~'):
+            mark = s[:3]
+            fence = None if fence == mark else (fence or mark)
+            continue
+        if fence or line.startswith('    '):
+            continue
+        yield n, line, CODE_SPAN.sub('', line)
+
+
+def main():
+    quiet = '--quiet' in sys.argv
+    files = list(md_files())
+    by_name = defaultdict(list)
+    for f in files:
+        by_name[os.path.splitext(os.path.basename(f))[0]].append(f)
+
+    checked, broken, ambiguous, folder, pipes = 0, [], [], [], []
+    for f in files:
+        rel = os.path.relpath(f, ROOT)
+        for n, raw, line in prose_lines(f):
+            if line.lstrip().startswith('|'):
+                for m in TABLE_UNESCAPED.finditer(line):
+                    pipes.append(f'{rel}:{n}: {m.group(0)}')
+            for m in LINK.finditer(line):
+                target = re.split(r'\\?\||#', m.group(1))[0].strip()
+                if not target:
+                    continue
+                checked += 1
+                cands = [os.path.normpath(os.path.join(os.path.dirname(f), target)),
+                         os.path.normpath(os.path.join(ROOT, target))]
+                if any(os.path.isfile(c + '.md') or os.path.isfile(c) for c in cands):
+                    continue
+                if any(os.path.isdir(c) for c in cands) or target.endswith('/'):
+                    folder.append(f'{rel}:{n}: [[{m.group(1)}]]')
+                    continue
+                same = by_name.get(os.path.basename(target), [])
+                if '/' not in target and len(same) == 1:
+                    continue
+                if '/' not in target and len(same) > 1:
+                    ambiguous.append(f'{rel}:{n}: [[{m.group(1)}]] — имя не уникально, нужен путь')
+                else:
+                    broken.append(f'{rel}:{n}: [[{m.group(1)}]]')
+
+    secrets_hits, secrets_tracked = [], []
+    git = os.path.isdir(os.path.join(ROOT, '.git'))
+    if git:
+        r = subprocess.run(['git', '-C', ROOT, 'grep', '-nEi', SECRET], capture_output=True, text=True)
+        secrets_hits = [l for l in r.stdout.splitlines() if l and not l.startswith('bin/check')]
+        r = subprocess.run(['git', '-C', ROOT, 'ls-files', 'secrets', '*.env', '*.key', '*.pem'],
+                           capture_output=True, text=True)
+        secrets_tracked = [l for l in r.stdout.splitlines() if l]
+
+    todo = sum(open(f, encoding='utf-8').read().count('<настрой') for f in files)
+
+    today = datetime.date.today().isoformat()
+    print(f'check {today} · файлов {len(files)} · связей проверено {checked}')
+    rows = [('битые связи', broken), ('неуникальные имена без пути', ambiguous),
+            ('ссылки на папки', folder), ('неэкранированный пайп в таблицах', pipes),
+            ('похоже на секрет в индексе git', secrets_hits), ('секреты под git', secrets_tracked)]
+    for title, items in rows:
+        print(f'  {title}: {len(items)}')
+        if not quiet:
+            for i in items:
+                print(f'    {i}')
+    if not git:
+        print('  git: нет — секреты в индексе не проверены')
+    print(f'  пометок <настрой> осталось: {todo}')
+    sys.exit(1 if any(items for _, items in rows) else 0)
+
+
+if __name__ == '__main__':
+    main()

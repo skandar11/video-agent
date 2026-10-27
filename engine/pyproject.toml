@@ -1,0 +1,24 @@
+[project]
+name = "montage"
+version = "0.1.0"
+description = "Монтаж, обработка и сборка вертикальных роликов по монтажному листу edit.json"
+requires-python = ">=3.12"
+dependencies = [
+  "Pillow", "mlx-whisper", "pytest",
+]
+
+[project.scripts]
+montage = "montage.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["montage"]
+
+[tool.setuptools.package-data]
+montage = ["styles/*.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
